@@ -1,3 +1,4 @@
+media/
 awcy_server.js
 generate_list.js
 
@@ -7,6 +8,7 @@ list.json
 
 av1/
 av1-rt
+av2/
 vp10/
 vp9/
 daala/
