@@ -76,7 +76,7 @@ export class AnalyzerVideoSelectorComponent extends React.Component<AnalyzerProp
     // AppDispatcher.dispatch(new AnalyzeFile("https://media.xiph.org/analyzer/inspect.js", "crosswalk_30.ivf"));
   }
   onAnalyzeInTabClick() {
-    AppDispatcher.dispatch(new AnalyzeFile("https://media.xiph.org/analyzer/inspect.js", "crosswalk_30.ivf"));
+    AppDispatcher.dispatch(new AnalyzeFile("https://mindfreeze.tk/~mindfreeze/inspect.js", "crosswalk_30.ivf"));
   }
   render() {
     let options = this.state.options;
