@@ -34,6 +34,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+
 class PchipInterpolator_new(BPoly):
     def __init__(self, x, y, axis=0, extrapolate=None):
         x = _asarray_validated(x, check_finite=False, as_inexact=True)
@@ -49,7 +50,7 @@ class PchipInterpolator_new(BPoly):
 
         _b = BPoly.from_derivatives(x, data, orders=None)
         super(PchipInterpolator_new, self).__init__(_b.c, _b.x,
-                                                extrapolate=extrapolate)
+                                                    extrapolate=extrapolate)
         self.axis = axis
 
     def roots(self):
@@ -72,7 +73,6 @@ class PchipInterpolator_new(BPoly):
         d[mmm] = 3.*m0[mmm]
 
         return d
-
 
     @staticmethod
     def _find_derivatives(x, y):
@@ -108,12 +108,14 @@ class PchipInterpolator_new(BPoly):
         dk[1:-1][condition] = 0.0
         dk[1:-1][~condition] = 1.0 / whmean[~condition]
 
-        # special case endpoints, as suggested in 
+        # special case endpoints, as suggested in
         # Cleve Moler, Numerical Computing with MATLAB, Chap 3.4
         dk[0] = PchipInterpolator_new._edge_case(hk[0], hk[1], mk[0], mk[1])
-        dk[-1] = PchipInterpolator_new._edge_case(hk[-1], hk[-2], mk[-1], mk[-2])
+        dk[-1] = PchipInterpolator_new._edge_case(
+            hk[-1], hk[-2], mk[-1], mk[-2])
 
         return dk.reshape(y_shape)
+
 
 class PchipInterpolator_old(BPoly):
     def __init__(self, x, y, axis=0, extrapolate=None):
@@ -130,7 +132,7 @@ class PchipInterpolator_old(BPoly):
 
         _b = BPoly.from_derivatives(x, data, orders=None)
         super(PchipInterpolator_old, self).__init__(_b.c, _b.x,
-                                                extrapolate=extrapolate)
+                                                    extrapolate=extrapolate)
         self.axis = axis
 
     def roots(self):
@@ -186,64 +188,45 @@ class PchipInterpolator_old(BPoly):
         return dk.reshape(y_shape)
 
 
-parser = argparse.ArgumentParser(description='Produce bd-rate report')
-parser.add_argument('run',nargs=2,help='Run folders to compare')
-parser.add_argument('--anchor',help='Explicit anchor to use')
-parser.add_argument('--overlap',action='store_true',help='Use traditional overlap instead of anchor')
-parser.add_argument('--anchordir',nargs=1,help='Folder to find anchor runs')
-parser.add_argument('--suffix',help='Metric data suffix (default is .out)',default='.out')
-parser.add_argument('--format',help='Format of output',default='text')
-parser.add_argument('--fullrange',action='store_true',help='Use full range of QPs instead of 20-55')
-parser.add_argument('--old-pchip',action='store_true')
-args = parser.parse_args()
-
-if args.old_pchip:
-    pchip = PchipInterpolator_old
-else:
-    pchip = PchipInterpolator_new
-
 met_name = ['PSNR', 'PSNRHVS', 'SSIM', 'FASTSSIM', 'CIEDE2000',
             'PSNR Cb', 'PSNR Cr', 'APSNR', 'APSNR Cb', 'APSNR Cr',
             'MSSSIM', 'Encoding Time', 'VMAF_old', 'Decoding Time',
-             "PSNR Y (libvmaf)", "PSNR Cb (libvmaf)", "PSNR Cr (libvmaf)",
+            "PSNR Y (libvmaf)", "PSNR Cb (libvmaf)", "PSNR Cr (libvmaf)",
             "CIEDE2000 (libvmaf)", "SSIM (libvmaf)", "MS-SSIM (libvmaf)",
             "PSNR-HVS Y (libvmaf)", "PSNR-HVS Cb (libvmaf)", "PSNR-HVS Cr (libvmaf)",
             "PSNR-HVS (libvmaf)", "VMAF", "VMAF-NEG"
             ]
 met_index = {'PSNR': 0, 'PSNRHVS': 1, 'SSIM': 2, 'FASTSSIM': 3, 'CIEDE2000': 4,
-             'PSNR Cb': 5, 'PSNR Cr': 6, 'APSNR': 7, 'APSNR Cb': 8, 'APSNR Cr':9,
-             'MSSSIM':10, 'Encoding Time':11, 'VMAF_old':12, 'Decoding Time': 13,
+             'PSNR Cb': 5, 'PSNR Cr': 6, 'APSNR': 7, 'APSNR Cb': 8, 'APSNR Cr': 9,
+             'MSSSIM': 10, 'Encoding Time': 11, 'VMAF_old': 12, 'Decoding Time': 13,
              "PSNR Y (libvmaf)": 14, "PSNR Cb (libvmaf)": 15, "PSNR Cr (libvmaf)": 16,
              "CIEDE2000 (libvmaf)": 17, "SSIM (libvmaf)": 18, "MS-SSIM (libvmaf)": 19,
              "PSNR-HVS Y (libvmaf)": 20, "PSNR-HVS Cb (libvmaf)": 21, "PSNR-HVS Cr (libvmaf)": 22,
              "PSNR-HVS (libvmaf)": 23, "VMAF": 24, "VMAF-NEG": 25}
 
-q_not_found = False
-
-error_strings = []
 
 def bdrate(file1, file2, anchorfile, fullrange):
     if anchorfile:
-        anchor = flipud(loadtxt(anchorfile));
+        anchor = flipud(loadtxt(anchorfile))
     a = loadtxt(file1)
     b = loadtxt(file2)
-    a = a[a[:,0].argsort()]
-    b = b[b[:,0].argsort()]
+    a = a[a[:, 0].argsort()]
+    b = b[b[:, 0].argsort()]
     a = flipud(a)
     b = flipud(b)
-    rates = [0.06,0.2];
-    qa = a[:,0]
-    qb = b[:,0]
-    ra = a[:,2]*8./a[:,1]
-    rb = b[:,2]*8./b[:,1]
-    bdr = zeros((4,4))
+    rates = [0.06, 0.2]
+    qa = a[:, 0]
+    qb = b[:, 0]
+    ra = a[:, 2]*8./a[:, 1]
+    rb = b[:, 2]*8./b[:, 1]
+    bdr = zeros((4, 4))
     ret = {}
-    for m in range(0,len(met_index)):
+    for m in range(0, len(met_index)):
         try:
-            ya = a[:,3+m];
-            yb = b[:,3+m];
+            ya = a[:, 3+m]
+            yb = b[:, 3+m]
             if anchorfile:
-                yr = anchor[:,3+m];
+                yr = anchor[:, 3+m]
             #p0 = interp1d(ra, ya, interp_type)(rates[0]);
             #p1 = interp1d(ra, ya, interp_type)(rates[1]);
             if anchorfile:
@@ -283,14 +266,14 @@ def bdrate(file1, file2, anchorfile, fullrange):
                     yyb = yb
                     rra = ra
                     rrb = rb
-                p0 = max(ya[maxqa_index],yb[maxqb_index])
-                p1 = min(ya[minqa_index],yb[minqb_index])
-            a_rate = pchip(yya, log(rra))(arange(p0,p1,abs(p1-p0)/5000.0));
-            b_rate = pchip(yyb, log(rrb))(arange(p0,p1,abs(p1-p0)/5000.0));
+                p0 = max(ya[maxqa_index], yb[maxqb_index])
+                p1 = min(ya[minqa_index], yb[minqb_index])
+            a_rate = pchip(yya, log(rra))(arange(p0, p1, abs(p1-p0)/5000.0))
+            b_rate = pchip(yyb, log(rrb))(arange(p0, p1, abs(p1-p0)/5000.0))
             if not len(a_rate) or not len(b_rate):
-                bdr = NaN;
+                bdr = NaN
             else:
-                bdr=100 * (exp(mean(b_rate-a_rate))-1);
+                bdr = 100 * (exp(mean(b_rate-a_rate))-1)
         except ValueError:
             bdr = NaN
         except linalg.linalg.LinAlgError:
@@ -301,8 +284,8 @@ def bdrate(file1, file2, anchorfile, fullrange):
             bdr = NaN
         ret[m] = bdr
     # handle encode time and decode time separately
-    encode_times_a = a[:,3+met_index['Encoding Time']];
-    encode_times_b = b[:,3+met_index['Encoding Time']];
+    encode_times_a = a[:, 3+met_index['Encoding Time']]
+    encode_times_b = b[:, 3+met_index['Encoding Time']]
     try:
         # compute a percent change for each qp
         encode_times = (encode_times_b - encode_times_a) / encode_times_a
@@ -310,8 +293,8 @@ def bdrate(file1, file2, anchorfile, fullrange):
         ret[met_index['Encoding Time']] = encode_times.mean() * 100.0
     except ZeroDivisionError:
         ret[met_index['Encoding Time']] = NaN
-    decode_times_a = a[:,3+met_index['Decoding Time']];
-    decode_times_b = b[:,3+met_index['Decoding Time']];
+    decode_times_a = a[:, 3+met_index['Decoding Time']]
+    decode_times_b = b[:, 3+met_index['Decoding Time']]
     try:
         decode_times = (decode_times_b - decode_times_a) / decode_times_a
         ret[met_index['Decoding Time']] = decode_times.mean() * 100.0
@@ -319,110 +302,151 @@ def bdrate(file1, file2, anchorfile, fullrange):
         ret[met_index['Decoding Time']]
     return ret
 
-metric_data = {}
 
-try:
-    info_data = {}
-    info_data[0] = json.load(open(args.run[0]+'/info.json'))
-    info_data[1] = json.load(open(args.run[1]+'/info.json'))
+def main():
 
-    if info_data[0]['task'] != info_data[1]['task']:
-        print("Runs do not match.")
-        sys.exit(1)
-    task = info_data[0]['task']
-except FileNotFoundError:
-    # no info.json, using bare directories
-    print('Couldn\'t open', args.run[0])
-    info_data = None
+    parser = argparse.ArgumentParser(description='Produce bd-rate report')
+    parser.add_argument('run', nargs=2, help='Run folders to compare')
+    parser.add_argument('--anchor', help='Explicit anchor to use')
+    parser.add_argument('--overlap', action='store_true',
+                        help='Use traditional overlap instead of anchor')
+    parser.add_argument('--anchordir', nargs=1,
+                        help='Folder to find anchor runs')
+    parser.add_argument(
+        '--suffix', help='Metric data suffix (default is .out)', default='.out')
+    parser.add_argument('--format', help='Format of output', default='text')
+    parser.add_argument('--fullrange', action='store_true',
+                        help='Use full range of QPs instead of 20-55')
+    parser.add_argument('--old-pchip', action='store_true')
+    args = parser.parse_args()
 
-if info_data:
-    sets = json.load(open(os.path.join(os.getenv("CONFIG_DIR", "rd_tool"), "sets.json")))
-    videos = sets[task]["sources"]
-else:
-    if not args.anchor and not args.overlap:
-        print("You must specify an anchor to use if comparing bare result directories.")
-        exit(1)
-    videos = os.listdir(args.anchor)
+    if args.old_pchip:
+        pchip = PchipInterpolator_old
+    else:
+        pchip = PchipInterpolator_new
 
-if info_data and not args.overlap:
-    info_data[2] = json.load(open(args.anchordir[0]+'/'+sets[task]['anchor']+'/info.json'))
-    if info_data[2]['task'] != info_data[0]['task']:
-        print("Mismatched anchor data!")
-        sys.exit(1)
+    q_not_found = False
 
-if info_data:
-    for video in videos:
-        if args.overlap:
-            metric_data[video] = bdrate(args.run[0]+'/'+task+'/'+video+args.suffix,args.run[1]+'/'+task+'/'+video+args.suffix,None,args.fullrange)
-        else:
-            metric_data[video] = bdrate(args.run[0]+'/'+task+'/'+video+args.suffix,args.run[1]+'/'+task+'/'+video+args.suffix,args.anchordir[0]+'/'+sets[task]['anchor']+'/'+task+'/'+video+args.suffix,args.fullrange)
-else:
-    for video in videos:
-        metric_data[video] = bdrate(args.run[0]+'/'+video,args.run[1]+'/'+video,args.anchor+'/'+video,args.fullrange)
+    error_strings = []
 
-filename_len = 40
+    metric_data = {}
 
-avg = {}
-for m in range(0,len(met_index)):
-    avg[m] = mean([metric_data[x][m] for x in metric_data])
+    try:
+        info_data = {}
+        info_data[0] = json.load(open(args.run[0]+'/info.json'))
+        info_data[1] = json.load(open(args.run[1]+'/info.json'))
 
-categories = {}
-if info_data:
-    if 'categories' in sets[task]:
-        for category_name in sets[task]['categories']:
-            category = {}
-            for m in range(0,len(met_index)):
-                category[m] = mean([metric_data[x][m] for x in sets[task]['categories'][category_name]])
-            categories[category_name] = category
+        if info_data[0]['task'] != info_data[1]['task']:
+            print("Runs do not match.")
+            sys.exit(1)
+        task = info_data[0]['task']
+    except FileNotFoundError:
+        # no info.json, using bare directories
+        print('Couldn\'t open', args.run[0])
+        info_data = None
 
-if q_not_found:
-    error_strings.append("Warning: Quantizers 20 and 55 not found in results, using maximum overlap")
-
-if args.format == 'text':
-    for error in error_strings:
-        print(error)
-    print("%10s: %9.2f%% %9.2f%% %9.2f%%" % ('PSNR YCbCr', avg[0], avg[5], avg[6]))
-    print("%10s: %9.2f%%" % ('PSNRHVS', avg[1]))
-    print("%10s: %9.2f%%" % ('SSIM', avg[2]))
-    print("%10s: %9.2f%%" % ('MSSSIM', avg[10]))
-    print("%10s: %9.2f%%" % ('CIEDE2000', avg[4]))
-    print()
-    print(('%'+str(filename_len)+"s ") % 'file', end='')
-    for name in met_name:
-        print("%9s " % name, end='')
-    print('')
-    print('------------------------------------------------------------------------------------------')
-    for category_name in sorted(categories):
-        metric = categories[category_name]
-        print (('%'+str(filename_len)+"s ") % category_name[0:filename_len],end='')
-        for met in met_name:
-            print("%9.2f " % metric[met_index[met]],end='')
-        print('')
-    print('------------------------------------------------------------------------------------------')
-    for video in sorted(metric_data):
-        metric = metric_data[video]
-        print (('%'+str(filename_len)+"s ") % video[0:filename_len],end='')
-        for met in met_name:
-            print("%9.2f " % metric[met_index[met]],end='')
-        print('')
-    print('------------------------------------------------------------------------------------------')
-    print(('%'+str(filename_len)+"s ") % 'Average',end='')
-    for met in met_name:
-        print("%9.2f " % avg[met_index[met]],end='')
-    print('')
-    print("AWCY Report v0.4")
     if info_data:
-        print('Reference: ' + info_data[0]['run_id'])
-        print('Test Run: ' + info_data[1]['run_id'])
-    if args.overlap:
-        print('Range: overlap')
-    elif info_data:
-        print('Range: Anchor ' + info_data[2]['run_id'])
-elif args.format == 'json':
-    output = {}
-    output['metric_names'] = met_name
-    output['metric_data'] = metric_data
-    output['average'] = avg
-    output['categories'] = categories
-    output['error_strings'] = error_strings
-    print(json.dumps(output,indent=2))
+        sets = json.load(
+            open(os.path.join(os.getenv("CONFIG_DIR", "rd_tool"), "sets.json")))
+        videos = sets[task]["sources"]
+    else:
+        if not args.anchor and not args.overlap:
+            print(
+                "You must specify an anchor to use if comparing bare result directories.")
+            exit(1)
+        videos = os.listdir(args.anchor)
+
+    if info_data and not args.overlap:
+        info_data[2] = json.load(
+            open(args.anchordir[0]+'/'+sets[task]['anchor']+'/info.json'))
+        if info_data[2]['task'] != info_data[0]['task']:
+            print("Mismatched anchor data!")
+            sys.exit(1)
+
+    if info_data:
+        for video in videos:
+            if args.overlap:
+                metric_data[video] = bdrate(args.run[0]+'/'+task+'/'+video+args.suffix,
+                                            args.run[1]+'/'+task+'/'+video+args.suffix, None, args.fullrange)
+            else:
+                metric_data[video] = bdrate(args.run[0]+'/'+task+'/'+video+args.suffix, args.run[1]+'/'+task+'/'+video +
+                                            args.suffix, args.anchordir[0]+'/'+sets[task]['anchor']+'/'+task+'/'+video+args.suffix, args.fullrange)
+    else:
+        for video in videos:
+            metric_data[video] = bdrate(
+                args.run[0]+'/'+video, args.run[1]+'/'+video, args.anchor+'/'+video, args.fullrange)
+
+    filename_len = 40
+
+    avg = {}
+    for m in range(0, len(met_index)):
+        avg[m] = mean([metric_data[x][m] for x in metric_data])
+
+    categories = {}
+    if info_data:
+        if 'categories' in sets[task]:
+            for category_name in sets[task]['categories']:
+                category = {}
+                for m in range(0, len(met_index)):
+                    category[m] = mean(
+                        [metric_data[x][m] for x in sets[task]['categories'][category_name]])
+                categories[category_name] = category
+
+    if q_not_found:
+        error_strings.append(
+            "Warning: Quantizers 20 and 55 not found in results, using maximum overlap")
+
+    if args.format == 'text':
+        for error in error_strings:
+            print(error)
+        print("%10s: %9.2f%% %9.2f%% %9.2f%%" %
+              ('PSNR YCbCr', avg[0], avg[5], avg[6]))
+        print("%10s: %9.2f%%" % ('PSNRHVS', avg[1]))
+        print("%10s: %9.2f%%" % ('SSIM', avg[2]))
+        print("%10s: %9.2f%%" % ('MSSSIM', avg[10]))
+        print("%10s: %9.2f%%" % ('CIEDE2000', avg[4]))
+        print()
+        print(('%'+str(filename_len)+"s ") % 'file', end='')
+        for name in met_name:
+            print("%9s " % name, end='')
+        print('')
+        print('------------------------------------------------------------------------------------------')
+        for category_name in sorted(categories):
+            metric = categories[category_name]
+            print(('%'+str(filename_len)+"s ") %
+                  category_name[0:filename_len], end='')
+            for met in met_name:
+                print("%9.2f " % metric[met_index[met]], end='')
+            print('')
+        print('------------------------------------------------------------------------------------------')
+        for video in sorted(metric_data):
+            metric = metric_data[video]
+            print(('%'+str(filename_len)+"s ") % video[0:filename_len], end='')
+            for met in met_name:
+                print("%9.2f " % metric[met_index[met]], end='')
+            print('')
+        print('------------------------------------------------------------------------------------------')
+        print(('%'+str(filename_len)+"s ") % 'Average', end='')
+        for met in met_name:
+            print("%9.2f " % avg[met_index[met]], end='')
+        print('')
+        print("AWCY Report v0.4")
+        if info_data:
+            print('Reference: ' + info_data[0]['run_id'])
+            print('Test Run: ' + info_data[1]['run_id'])
+        if args.overlap:
+            print('Range: overlap')
+        elif info_data:
+            print('Range: Anchor ' + info_data[2]['run_id'])
+    elif args.format == 'json':
+        output = {}
+        output['metric_names'] = met_name
+        output['metric_data'] = metric_data
+        output['average'] = avg
+        output['categories'] = categories
+        output['error_strings'] = error_strings
+        print(json.dumps(output, indent=2))
+
+
+if __name__ == "__main__":
+    main()
