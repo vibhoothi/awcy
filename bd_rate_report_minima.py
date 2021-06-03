@@ -21,11 +21,9 @@ from bd_rate_report import met_index, met_name
 parser = argparse.ArgumentParser(
     description='Produce local minima per-clip for lambda based on bd-rate')
 parser.add_argument('run', nargs='*', help='Run folders to compare')
-parser.add_argument('--overlap', action='store_true',
-                    help='Use traditional overlap instead of anchor')
-parser.add_argument('--anchordir', nargs=1, help='Folder to find anchor runs')
 parser.add_argument(
     '--suffix', help='Metric data suffix (default is .out)', default='.out')
+parser.add_argument('--format', help='Format of output', default='text')
 parser.add_argument('--fullrange', action='store_true',
                     help='Use full range of QPs instead of 20-55')
 parser.add_argument('--old-pchip', action='store_true')
@@ -121,9 +119,6 @@ error_strings = []
 q_not_found = False
 runs_list = args.run
 info_data, task = return_info_data_from_runs(runs_list)
-print(type(info_data))
-# for x, y in info_data.items():
-#    print(y['extra_options'])
 sets, videos = return_video_info(info_data, task)
 
 
@@ -132,7 +127,6 @@ if len(runs_list) > 2:
     base_run = runs_list[0]
     key_count = 0
     for run in runs_list[1:]:
-        print("Base Run", base_run, "Run", run)
         metric_data, avg, categories = return_metric_data(
             base_run, run, info_data, videos, task, sets)
         output = {}
@@ -142,15 +136,13 @@ if len(runs_list) > 2:
         output['categories'] = categories
         output['error_strings'] = error_strings
         extra_options = {item[0].strip("--"): item[1] for item in [tmp.split("=")
-                            for tmp in info_data[key_count+1]['extra_options'].split(" ") if len(tmp) != 0]}
+                                                                   for tmp in info_data[key_count+1]['extra_options'].split(" ") if len(tmp) != 0]}
         k_value = np.format_float_positional(np.add(int(
             extra_options['alm_k']), np.multiply(int(extra_options['alm_step']), 0.10)), 1)
         output['k_value'] = k_value
-        print(output['metric_data']['autumn.y4m'][0])
         outputs.append(output)
         key_count = key_count + 1
 else:
-    print("FUCK")
     metric_data, avg, categories = return_metric_data(
         runs_list[0], runs_list[1], info_data, videos, task, sets)
     output = {}
@@ -160,19 +152,13 @@ else:
     output['categories'] = categories
     output['error_strings'] = error_strings
     extra_options = {item[0].strip("--"): item[1] for item in [tmp.split("=")
-                     for tmp in info_data[1]['extra_options'].split(" ") if len(tmp) != 0]}
+                                                               for tmp in info_data[1]['extra_options'].split(" ") if len(tmp) != 0]}
     k_value = np.format_float_positional(np.add(int(
         extra_options['alm_k']), np.multiply(int(extra_options['alm_step']), 0.10)), 1)
-    print("K value is", str(k_value))
     output['k_value'] = k_value
 
 assert len(outputs) > 0, "Atleast one file should be given as input"
-# print(outputs)
-# ['metric_data']['autumn.y4m'][0])
-# print(outputs[2]['metric_data']['autumn.y4m'][0])
-# for items in outputs:
-#    print(items['k_value'])
-# print(len(outputs))
+
 assert_video_names_are_same(outputs)
 assert_metric_names_are_in_order(outputs)
 video_names_in_first_json_obj = get_video_names_in_json_obj(outputs[0])
@@ -194,14 +180,11 @@ for metric_idx, metric_name in enumerate(metric_names_in_first_obj):
             print(
                 f"Min value of {metric_name} for {video_name} could not be computed as all values are null/None")
         else:
-            temp_clip_bdr[metric_name] = [video_name, min_metric_value, best_k_value]
+            temp_clip_bdr[metric_name] = [
+                video_name, min_metric_value, best_k_value]
             print(
                 f"Min value of {metric_name} for {video_name} is {min_metric_value}. k_value: {best_k_value}")
         per_clip_bdr.append(temp_clip_bdr)
 
-for item in range(0, 4):
-    print(outputs[item]['metric_data']['autumn.y4m'][0])
-
-
-print(simplejson.dumps(per_clip_bdr, ignore_nan=True))
-#print(json.dumps(per_clip_bdr, intent=2)))
+if args.format == 'json':
+    print(json.dumps(per_clip_bdr, indent=2))
