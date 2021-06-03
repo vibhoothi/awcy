@@ -20,7 +20,7 @@ from bd_rate_report import met_index, met_name
 
 parser = argparse.ArgumentParser(
     description='Produce local minima per-clip for lambda based on bd-rate')
-parser.add_argument('run', nargs='*', help='Run folders to compare')
+parser.add_argument('run', nargs='+', help='Run folders to compare')
 parser.add_argument(
     '--suffix', help='Metric data suffix (default is .out)', default='.out')
 parser.add_argument('--format', help='Format of output', default='text')
@@ -123,7 +123,7 @@ q_not_found = False
 runs_list = args.run
 info_data, task = return_info_data_from_runs(runs_list)
 sets, videos = return_video_info(info_data, task)
-
+filename_len = 40
 
 if len(runs_list) > 2:
     outputs = []
@@ -142,7 +142,7 @@ if len(runs_list) > 2:
                                                                    for tmp in info_data[key_count+1]['extra_options'].split(" ") if len(tmp) != 0]}
         k_value = np.format_float_positional(np.add(int(
             extra_options['alm_k']), np.multiply(int(extra_options['alm_step']), 0.10)), 1)
-        output['k_value'] = k_value
+        output['k_value'] = float(k_value)
         outputs.append(output)
         key_count = key_count + 1
 else:
@@ -179,11 +179,15 @@ for video_name in video_names_in_first_json_obj:
                 min_metric_value = metric_value_of_video_in_json_obj
                 best_k_value = json_obj['k_value']
         if min_metric_value == float("inf"):
-            temp_clip_metric[metric_name] = ['NaN', 'NaN']
+            temp_clip_metric[metric_name] = [NaN, NaN]
         else:
             temp_clip_metric[metric_name] = [min_metric_value, best_k_value]
     per_clip_bdr[video_name] = temp_clip_metric
 
 if args.format == 'json':
-    print(simplejson.dumps(per_clip_bdr, allow_nan=True))
-#    print(json.dumps(per_clip_bdr, indent=2))
+    print(json.dumps(per_clip_bdr, indent=2))
+elif args.format == 'csv':
+    print("Not yet, use json")
+elif args.format == "text":
+    print("Calculation completed, please re-run with --format=json/csv to see the output ")
+    print("Text output is not yet implemented")
