@@ -14,7 +14,7 @@ import json
 import simplejson
 from copy import deepcopy
 from bd_rate_report import bdrate
-from bd_rate_report import PchipInterpolator_new
+from bd_rate_report import PchipInterpolator_new, PchipInterpolator_old
 from bd_rate_report import met_index, met_name
 
 
@@ -113,7 +113,10 @@ def return_metric_data(run_a, run_b, info_data, videos, task, sets):
 
 
 args = parser.parse_args()
-pchip = PchipInterpolator_new
+if args.old_pchip:
+    pchip = PchipInterpolator_old
+else:
+    pchip = PchipInterpolator_new
 metric_data = {}
 error_strings = []
 q_not_found = False
@@ -163,28 +166,24 @@ assert_video_names_are_same(outputs)
 assert_metric_names_are_in_order(outputs)
 video_names_in_first_json_obj = get_video_names_in_json_obj(outputs[0])
 metric_names_in_first_obj = get_metric_names_in_json_obj(outputs[0])
-per_clip_bdr = []
-
-for metric_idx, metric_name in enumerate(metric_names_in_first_obj):
-    for video_name in video_names_in_first_json_obj:
+per_clip_bdr = {}
+per_clip_bdr["metric_names"] = met_name
+for video_name in video_names_in_first_json_obj:
+    temp_clip_metric = {}
+    for metric_idx, metric_name in enumerate(metric_names_in_first_obj):
         min_metric_value = float("inf")
         best_k_value = None
-        temp_clip_bdr = {}
         for json_obj_idx, json_obj in enumerate(outputs):
             metric_value_of_video_in_json_obj = json_obj["metric_data"][video_name][metric_idx]
             if metric_value_of_video_in_json_obj != None and metric_value_of_video_in_json_obj < min_metric_value:
                 min_metric_value = metric_value_of_video_in_json_obj
                 best_k_value = json_obj['k_value']
         if min_metric_value == float("inf"):
-            temp_clip_bdr[metric_name] = [video_name, NaN, NaN]
-            print(
-                f"Min value of {metric_name} for {video_name} could not be computed as all values are null/None")
+            temp_clip_metric[metric_name] = ['NaN', 'NaN']
         else:
-            temp_clip_bdr[metric_name] = [
-                video_name, min_metric_value, best_k_value]
-            print(
-                f"Min value of {metric_name} for {video_name} is {min_metric_value}. k_value: {best_k_value}")
-        per_clip_bdr.append(temp_clip_bdr)
+            temp_clip_metric[metric_name] = [min_metric_value, best_k_value]
+    per_clip_bdr[video_name] = temp_clip_metric
 
 if args.format == 'json':
-    print(json.dumps(per_clip_bdr, indent=2))
+    print(simplejson.dumps(per_clip_bdr, allow_nan=True))
+#    print(json.dumps(per_clip_bdr, indent=2))
