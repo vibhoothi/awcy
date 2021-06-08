@@ -11,6 +11,7 @@ import sys
 import os
 import argparse
 import json
+import csv
 import simplejson
 from copy import deepcopy
 from bd_rate_report import bdrate
@@ -187,7 +188,19 @@ for video_name in video_names_in_first_json_obj:
 if args.format == 'json':
     print(json.dumps(per_clip_bdr, indent=2))
 elif args.format == 'csv':
-    print("Not yet, use json")
+    csvwriter = csv.DictWriter(sys.stdout, fieldnames=[
+                               "filename"] + met_name + [x + "_k" for x in met_name])
+    csvwriter.writeheader()
+    for video_name, video_bdr in per_clip_bdr.items():
+        temp_buffer = {}
+        if video_name == 'metric_names':
+            continue
+        temp_buffer["filename"] = video_name
+        for bdr_obj in met_name:
+            bdr_idx = video_bdr[bdr_obj]
+            temp_buffer[bdr_obj] = bdr_idx[0]
+            temp_buffer[bdr_obj + '_k'] = bdr_idx[1]
+        csvwriter.writerow(temp_buffer)
 elif args.format == "text":
     print("Calculation completed, please re-run with --format=json/csv to see the output ")
     print("Text output is not yet implemented")
