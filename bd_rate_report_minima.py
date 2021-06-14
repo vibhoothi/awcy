@@ -5,7 +5,9 @@ from __future__ import print_function
 from collections import defaultdict
 from numpy import *
 import numpy as np
+import scipy as scipy
 from scipy import *
+from scipy.optimize import brent
 from scipy._lib._util import _asarray_validated
 import sys
 import os
@@ -40,6 +42,24 @@ def get_metric_names_in_json_obj(json_obj):
 
 def get_task_names_in_json_obj(json_obj):
     return json_obj['task']
+
+
+def optimize_brent_k(k_values, metric_values, interpolate_range):
+    k_interp = scipy.linspace(min(k_values), max(k_values), interpolate_range)
+    bdr_interp = scipy.interpolate.interp1d(k_values, metric_values)(k_interp)
+    fit_object = scipy.interpolate.UnivariateSpline(k_interp, bdr_interp)
+    brent_method = brent(fit_object)
+    return brent_method
+
+
+def optimize_brent_k2(k_values, metric_values, interpolate_range):
+    k_values = k_values[0::2]
+    metric_values = metric_values[0::2]
+    k_interp = scipy.linspace(min(k_values), max(k_values), interpolate_range)
+    bdr_interp = scipy.interpolate.interp1d(k_values, metric_values)(k_interp)
+    fit_object = scipy.interpolate.UnivariateSpline(k_interp, bdr_interp)
+    brent_method = brent(fit_object)
+    return brent_method
 
 
 def assert_video_names_are_same(json_objs):
@@ -79,7 +99,7 @@ def return_info_data_from_runs(runs):
     try:
         info_data = {}
         for run_no, run_name in enumerate(runs):
-            info_data[run_no] = json.load(open(run_name+'/info.json'))
+            info_data[run_no] = json.load(open(run_name + '/info.json'))
         assert_task_names_are_same(info_data)
     except FileNotFoundError:
         print('Could not open', runs[0])
@@ -99,8 +119,21 @@ def return_metric_data(run_a, run_b, info_data, videos, task, sets):
     categories = {}
     metric_data = {}
     for video in videos:
-        metric_data[video] = bdrate(run_a+'/'+task+'/'+video+args.suffix,
-                                    run_b+'/'+task+'/'+video+args.suffix, None, args.fullrange)
+        metric_data[video] = bdrate(
+            run_a +
+            '/' +
+            task +
+            '/' +
+            video +
+            args.suffix,
+            run_b +
+            '/' +
+            task +
+            '/' +
+            video +
+            args.suffix,
+            None,
+            args.fullrange)
     for m in range(0, len(met_index)):
         avg[m] = mean([metric_data[x][m] for x in metric_data])
     if 'categories' in sets[task]:
@@ -136,11 +169,11 @@ if len(runs_list) > 2:
         output = {}
         output['metric_names'] = met_name
         output['metric_data'] = metric_data
-        output['average'] = avg.copy
+        output['average'] = avg
         output['categories'] = categories
         output['error_strings'] = error_strings
-        extra_options = {item[0].strip("--"): item[1] for item in [tmp.split("=")
-                                                                   for tmp in info_data[key_count+1]['extra_options'].split(" ") if len(tmp) != 0]}
+        extra_options = {item[0].strip("--"): item[1] for item in [tmp.split(
+            "=") for tmp in info_data[key_count + 1]['extra_options'].split(" ") if len(tmp) != 0]}
         k_value = np.format_float_positional(np.add(int(
             extra_options['alm_k']), np.multiply(int(extra_options['alm_step']), 0.10)), 1)
         output['k_value'] = float(k_value)
@@ -167,23 +200,39 @@ assert_video_names_are_same(outputs)
 assert_metric_names_are_in_order(outputs)
 video_names_in_first_json_obj = get_video_names_in_json_obj(outputs[0])
 metric_names_in_first_obj = get_metric_names_in_json_obj(outputs[0])
+per_clip_runs = {}
 per_clip_bdr = {}
 per_clip_bdr["metric_names"] = met_name
 for video_name in video_names_in_first_json_obj:
     temp_clip_metric = {}
+    temp_run_metrics = {}  # full_data_all_metric
     for metric_idx, metric_name in enumerate(metric_names_in_first_obj):
+        temp_clip_buffer = {}  # temp_data
         min_metric_value = float("inf")
         best_k_value = None
         for json_obj_idx, json_obj in enumerate(outputs):
             metric_value_of_video_in_json_obj = json_obj["metric_data"][video_name][metric_idx]
-            if metric_value_of_video_in_json_obj != None and metric_value_of_video_in_json_obj < min_metric_value:
+            temp_clip_buffer[json_obj['k_value']
+                             ] = json_obj['metric_data'][video_name][metric_idx]
+            if metric_value_of_video_in_json_obj is not None and metric_value_of_video_in_json_obj < min_metric_value:
                 min_metric_value = metric_value_of_video_in_json_obj
                 best_k_value = json_obj['k_value']
+        opt_k_value = optimize_brent_k(
+            list(
+                temp_clip_buffer.keys()), list(
+                temp_clip_buffer.values()), 10000)
+        opt_k_value2 = optimize_brent_k2(
+            list(
+                temp_clip_buffer.keys()), list(
+                temp_clip_buffer.values()), 10000)
+        temp_run_metrics[metric_name] = temp_clip_buffer
         if min_metric_value == float("inf"):
-            temp_clip_metric[metric_name] = [NaN, NaN]
+            temp_clip_metric[metric_name] = [NaN, NaN, NaN, NaN]
         else:
-            temp_clip_metric[metric_name] = [min_metric_value, best_k_value]
+            temp_clip_metric[metric_name] = [
+                min_metric_value, best_k_value, opt_k_value, opt_k_value2]
     per_clip_bdr[video_name] = temp_clip_metric
+    per_clip_runs[video_name] = temp_run_metrics
 
 if args.format == 'json':
     print(json.dumps(per_clip_bdr, indent=2))
@@ -204,3 +253,5 @@ elif args.format == 'csv':
 elif args.format == "text":
     print("Calculation completed, please re-run with --format=json/csv to see the output ")
     print("Text output is not yet implemented")
+    print("Full Raw text output")
+   # print(json.dumps(outputs, indent=2))
