@@ -1,4 +1,5 @@
 media/
+work/
 awcy_server.js
 generate_list.js
 
@@ -15,6 +16,11 @@ daala/
 daalatool/
 rd_tool/
 thor/
+rav1e/
+dav1d/
+analyzer/
+x264/
+x265/
 
 # Logs
 logs
