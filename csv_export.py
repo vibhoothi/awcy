@@ -31,7 +31,7 @@ if task != 'av2-a1-4k-as':
     videos.sort()
 else:
     videos.sort(key=lambda x: x.split('_')[0] + '%08d' % (100000 - int(x.split('_')[1].split('x')[0])))
-videos_dir = os.path.join(os.getenv("MEDIA_DIR", "/mnt/runs/sets"), task) # for getting framerate
+videos_dir = os.path.join(os.getenv("MEDIA_DIR", "/home/mindfreeze/awcy/media/"), task) # for getting framerate
 
 w = csv.writer(sys.stdout, dialect='excel')
 if info_data['codec'] == 'av2-as':
