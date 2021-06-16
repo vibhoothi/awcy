@@ -57,8 +57,8 @@ case "${CODEC}" in
     make
     ;;
 
-  av1 | av1-rt)
-    cd ${CODECS_SRC_DIR}/${CODEC}
+  av1 | av1-rt | av1-cbr | av1-cbr2)
+    cd ${CODECS_SRC_DIR}/av1 # TODO: Hardcoded as av1, so av1-rt might be BROKEN
     echo "-- Starting x86_64 Build --"
     if [[ "${BUILD_OPTIONS}" == *"--enable"* ]]; then
       # legacy configure build

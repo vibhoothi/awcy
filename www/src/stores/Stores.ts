@@ -555,6 +555,8 @@ export class Job {
   static codecs = {
     "av1": "AV1 (libaom) Random Access (RA)",
     "av1-rt": "AV1 (libaom) Low Delay (LD)",
+    "av1-cbr": "AV1(libaom) CBR Test set 1",
+    "av1-cbr2": "AV1(libaom) CBR Test set 2",
     "svt-av1": "AV1 (SVT-AV1) Random Access (RA)",
     "av2-ai": "AV2 (libaom) All Intra (AI)",
     "av2-ra": "AV2 (libaom) Random Access (RA) GOP parallel",
@@ -578,7 +580,7 @@ export class Job {
 
   static encodingModes = {
     "quantizer": "Target Quantizer",
-    "bitrate": "Target Bitrate (single-pass, rav1e only)",
+    "bitrate": "Target Bitrate (libaom-av1(2-pass) and rav1e(1-pass) only.)",
   };
 
   static sets = {};
