@@ -15,11 +15,21 @@ RUN \
 	groupadd --gid 1000 ${APP_USER} && \
 	useradd --uid 1000 --gid ${APP_USER} --shell /bin/bash --create-home ${APP_USER}
 
-# install base build dependencies and useful packages
+
+# install common/useful packages
 RUN \
-	echo "deb http://archive.ubuntu.com/ubuntu/ focal main restricted universe multiverse"           >/etc/apt/sources.list && \
-	echo "deb http://security.ubuntu.com/ubuntu focal-security main restricted universe multiverse" >>/etc/apt/sources.list && \
-	echo "deb http://archive.ubuntu.com/ubuntu/ focal-updates main restricted universe multiverse"  >>/etc/apt/sources.list && \
+	ARCH=`uname -m` && \
+	if [ "$ARCH" = "x86_64" ]; then \
+		echo "deb http://archive.ubuntu.com/ubuntu/ focal main restricted universe multiverse"           >/etc/apt/sources.list && \
+		echo "deb http://security.ubuntu.com/ubuntu focal-security main restricted universe multiverse" >>/etc/apt/sources.list && \
+		echo "deb http://archive.ubuntu.com/ubuntu/ focal-updates main restricted universe multiverse"  >>/etc/apt/sources.list; \
+	else \
+		echo "deb http://ports.ubuntu.com/ubuntu-ports/ focal main restricted universe multiverse"           >/etc/apt/sources.list && \
+		echo "deb http://ports.ubuntu.com/ubuntu-ports focal-security main restricted universe multiverse" >>/etc/apt/sources.list && \
+		echo "deb http://ports.ubuntu.com/ubuntu-ports/ focal-updates main restricted universe multiverse"  >>/etc/apt/sources.list; \
+	fi
+
+RUN \
 	apt-get update && \
 	apt-get install -y --no-install-recommends \
 		autoconf \
@@ -75,17 +85,20 @@ RUN \
 
 # install nasm
 RUN \
-	DIR=/tmp/nasm && \
-	NASM_URL=http://debian-archive.trafficmanager.net/debian/pool/main/n/nasm && \
-	NASM_VERSION=2.15.05-1 && \
-	NASM_DEB=nasm_${NASM_VERSION}_amd64.deb && \
-	NASM_SUM=c860caec653b865d5b83359452d97b11f1b3ba5b18b07cac554cf72550b3bfc9 && \
-	mkdir -p ${DIR} && \
-	cd ${DIR} && \
-	curl -O ${NASM_URL}/${NASM_DEB} && \
-	echo ${NASM_SUM} ${NASM_DEB} | sha256sum --check && \
-	dpkg -i ${NASM_DEB} && \
-	rm -rf ${DIR}
+	ARCH=`uname -m` && \
+	if [ "$ARCH" = "x86_64" ]; then \
+		DIR=/tmp/nasm && \
+		NASM_URL=http://debian-archive.trafficmanager.net/debian/pool/main/n/nasm && \
+		NASM_VERSION=2.15.05-1 && \
+		NASM_DEB=nasm_${NASM_VERSION}_amd64.deb && \
+		NASM_SUM=c860caec653b865d5b83359452d97b11f1b3ba5b18b07cac554cf72550b3bfc9 && \
+		mkdir -p ${DIR} && \
+		cd ${DIR} && \
+		curl -O ${NASM_URL}/${NASM_DEB} && \
+		echo ${NASM_SUM} ${NASM_DEB} | sha256sum --check && \
+		dpkg -i ${NASM_DEB} && \
+		rm -rf ${DIR}; \
+	fi
 
 # set working directory
 WORKDIR ${APP_DIR}
@@ -98,8 +111,13 @@ ENV \
 
 # install rust
 RUN \
+	ARCH=`uname -m` && \
 	RUST_VERSION=1.59.0 && \
-	curl -sSf --output /tmp/rustup-init https://static.rust-lang.org/rustup/archive/1.14.0/x86_64-unknown-linux-gnu/rustup-init && \
+	if [ "$ARCH" = "x86_64" ]; then \
+		curl -sSf --output /tmp/rustup-init https://static.rust-lang.org/rustup/archive/1.14.0/x86_64-unknown-linux-gnu/rustup-init; \
+	else \
+		curl -sSf --output /tmp/rustup-init  https://static.rust-lang.org/rustup/archive/1.14.0/aarch64-unknown-linux-gnu/rustup-init; \
+	fi && \
 	chmod +x /tmp/rustup-init && \
 	/tmp/rustup-init -y --no-modify-path --default-toolchain ${RUST_VERSION} && \
 	rm -vf /tmp/rustup-init
@@ -107,7 +125,12 @@ RUN \
 # install node 12.x
 RUN \
 	NODE_VERSION=12.16.1 && \
-	ARCH=x64 && \
+	ARCH=`uname -m` && \
+	if [ "$ARCH" = "aarch64" ]; then \
+		ARCH='arm64'; \
+	else \
+		ARCH='x86'; \
+	fi && \
 	for key in \
 		4ED778F539E3634C779C87C6D7062848A1AB005C \
 		B9E2F5981AA6E0CD28160D9FF13993A75599653C \
@@ -124,6 +147,7 @@ RUN \
 			http_proxy= gpg --keyserver "$server" --recv-keys "${key}" && break || : ; \
 		done ; \
 	done && \
+	echo "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" && \
 	curl -fSLO "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" && \
 	curl -fSLO "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt.asc" && \
 	gpg --batch --decrypt --output SHASUMS256.txt SHASUMS256.txt.asc && \
@@ -134,8 +158,16 @@ RUN \
 
 # install emscripten
 RUN \
-	EMSDK_VERSION=1.40.1 && \
-	EMSDK_HASH=e88a3c5bbfef172a5b947768204ef734e2fb6e04 && \
+	ARCH=`uname -m` && \
+	if [ "$ARCH" = "x86_64" ]; then \
+		EMSDK_VERSION=1.40.1; \
+		EMSDK_HASH=e88a3c5bbfef172a5b947768204ef734e2fb6e04; \
+	else \
+		EMSDK_VERSION=3.1.9; \
+		EMSDK_HASH=e34773a0d1a2f32dd3ba90d408a30fae89aa3c5a; \
+	fi && \
+	EMSDK_VERSION=3.1.9 && \
+	EMSDK_HASH=e34773a0d1a2f32dd3ba90d408a30fae89aa3c5a && \
 	mkdir -p /opt/emsdk && \
 	curl -sSL https://github.com/emscripten-core/emsdk/archive/${EMSDK_HASH}.tar.gz | tar zxf - -C /opt/emsdk --strip-components=1 && \
 	cd /opt/emsdk && \
@@ -191,7 +223,8 @@ RUN \
 	mkdir -p $(dirname ${CIEDE2000_DIR}) && \
 	git clone https://github.com/KyleSiefring/dump_ciede2000.git ${CIEDE2000_DIR} && \
 	cd ${CIEDE2000_DIR} && \
-	cargo build --release
+	cargo clean &&\
+	cargo build --verbose --release
 
 # install hdrtools
 ENV \
@@ -199,6 +232,7 @@ ENV \
 	HDRTOOLS_VERSION=0.21
 
 RUN \
+	ARCH=`uname -m` && \
 	mkdir -p ${HDRTOOLS_DIR} && \
 	curl -sSfL --output HDRTools.tar.bz2 https://gitlab.com/standards/HDRTools/-/archive/v${HDRTOOLS_VERSION}/HDRTools-v${HDRTOOLS_VERSION}.tar.bz2 && \
 	tar -xvf HDRTools.tar.bz2 --strip-components=1 -C ${HDRTOOLS_DIR} && \
@@ -206,6 +240,14 @@ RUN \
 	sed -i 's/std::modff/modff/g' common/src/OutputY4M.cpp && \
 	sed -i 's/using ::hdrtoolslib::Y_COMP;//g' projects/HDRConvScaler/src/HDRConvScalerYUV.cpp && \
 	sed -i 's/\[Y_COMP\]/\[hdrtoolslib::Y_COMP\]/g' projects/HDRConvScaler/src/HDRConvScalerYUV.cpp && \
+	if [ "$ARCH" = "aarch64" ]; then \
+		# temporary patches until ARM support is upstream
+		sed -i 's/-msse2//g' common/Makefile projects/*/Makefile; \
+		sed -i 's/-mfpmath=sse//g' common/Makefile projects/*/Makefile; \
+		sed -i 's/#include <x86intrin.h>//g' common/src/ResizeBiCubic.cpp common/src/DistortionMetricVQM.cpp; \
+		sed -i 's/#include <mmintrin.h>//g' common/src/DistortionMetricVQM.cpp; \
+		sed -i 's/#if defined(ENABLE_SSE_OPT)/#if ENABLE_SSE_OPT/g' common/src/ResizeBiCubic.cpp; \
+	fi && \
 	make # -j is broken
 
 # install rd_tool and dependencies
@@ -262,15 +304,22 @@ RUN \
 	rm -rf /var/lib/apt/lists
 
 # add code
-ADD package.json package-lock.json *.ts tsconfig.json ${APP_DIR}/
+ADD package.json  *.ts tsconfig.json ${APP_DIR}/
 ADD www ${APP_DIR}/www
 
 # compile typescript/nodejs code
 RUN \
 	cd ${APP_DIR} && \
 	export PYTHON=python2.7 && \
+	alias python=python2.7 && \
+	rm -rf node_modules && \
+	ls  && \
 	npm install && \
-	npm run tsc && \
+	#npm i -g npm-check-updates && \
+	#npm install --build-from-source --force && \
+	npm run tsc
+
+RUN \
 	cd ${APP_DIR}/www && \
 	npm install && \
 	npm run build
@@ -291,8 +340,9 @@ ENV \
 	AWCY_SERVER_PORT=3000 \
 	RD_SERVER_PORT=4000
 
+# add configuration scripts
+ADD etc/* /etc
+
 # set entrypoint
 ENTRYPOINT [ "/etc/entrypoint" ]
 
-# add configuration scripts
-ADD etc /etc
