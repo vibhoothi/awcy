@@ -171,8 +171,8 @@ RUN \
 	git clone https://code.videolan.org/videolan/dav1d.git ${DAV1D_DIR} && \
 	cd ${DAV1D_DIR} && \
 	mkdir build && cd build && \
-	meson .. && \
-	ninja
+	meson .. --default-library static --buildtype release && \
+	ninja install
 
 # install VMAF
 ENV \

@@ -194,5 +194,17 @@ if [ -z "${SSH_PRIVKEY_FILE:-}" ]; then
 	export SSH_PRIVKEY_FILE=${CONFIG_DIR}/awcy.pem
 fi
 
+git config --global --add safe.directory '*'
+touch /home/${APP_USER}/.gitconfig
+cat >/home/${APP_USER}/.gitconfig <<-EOF
+	[safe]
+		directory = *
+	EOF
+chown xiph /home/${APP_USER}/.gitconfig
+
+eval `ssh-agent -s`
+ssh-add /data/conf/awcy.pem
+ssh-add -l
+
 # run runit services
 exec tini -g -- /usr/bin/runsvdir -P /etc/service

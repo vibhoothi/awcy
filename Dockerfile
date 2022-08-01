@@ -182,11 +182,17 @@ RUN \
 # install tini
 RUN \
 	TINI_VERSION=v0.18.0 && \
+	ARCH=`uname -m` && \
+	if [ "$ARCH" = "x86_64" ]; then \
+		TINI_FILE='tini'; \
+	else \
+		TINI_FILE='tini-arm64'; \
+	fi && \
 	for server in $(shuf -e ${GPG_SERVERS}) ; do \
 		http_proxy= gpg --keyserver "$server" --recv-keys 0527A9B7 && break || : ; \
 	done && \
-	wget -O/usr/bin/tini     "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini" && \
-	wget -O/usr/bin/tini.asc "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini.asc" && \
+	wget -O/usr/bin/tini     "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/${TINI_FILE}" && \
+	wget -O/usr/bin/tini.asc "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/${TINI_FILE}.asc" && \
 	gpg --verify /usr/bin/tini.asc && \
 	rm -f /usr/bin/tini.asc && \
 	chmod a+x /usr/bin/tini
@@ -282,8 +288,8 @@ RUN \
 	git clone https://code.videolan.org/videolan/dav1d.git ${DAV1D_DIR} && \
 	cd ${DAV1D_DIR} && \
 	mkdir build && cd build && \
-	meson .. && \
-	ninja
+	meson .. --default-library static --buildtype release && \
+	ninja install
 
 # install VMAF
 ENV \
@@ -342,6 +348,8 @@ ENV \
 
 # add configuration scripts
 ADD etc/* /etc
+ADD etc/service/awcy /etc/service/awcy
+ADD etc/service/job-scheduler /etc/service/job-scheduler
 
 # set entrypoint
 ENTRYPOINT [ "/etc/entrypoint" ]
