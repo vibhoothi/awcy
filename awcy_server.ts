@@ -388,7 +388,11 @@ app.get('/bd_rate',function(req,res) {
 // Requires Two Jobs as arguments.
 app.get('/ctc_report.xlsm',function(req,res) {
   if (!req.query['a']) {
-    res.send('No run specified');
+    res.send('No Run A specified');
+    return;
+  }
+  if (!req.query['b']) {
+    res.send('No Run B specified');
     return;
   }
   const a = path.basename(String(req.query['a']));
