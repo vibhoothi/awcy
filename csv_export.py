@@ -58,6 +58,8 @@ start_rows = {
     'E': 482
 }
 
+run_cfgs = ['RA', 'LD', 'AI', 'AS']
+
 row_header = [
     "TestCfg",
     "EncodeMethod",
@@ -144,6 +146,9 @@ def save_ctc_export(run_path, cmd_args):
         fps_n, fps_d = re.search(r"F([0-9]*)\:([0-9]*)", line).group(1, 2)
         width = re.search(r"W([0-9]*)", line).group(1)
         height = re.search(r"H([0-9]*)", line).group(1)
+        current_video_set = info_data["task"]
+        if 'aomctc' in current_video_set:
+            normalized_set = current_video_set.split('-')[1].upper()
         a = loadtxt(os.path.join(run_path, task, video + "-daala.out"))
         for row in a:
             frames = int(row[1]) / int(width) / int(height)
@@ -190,13 +195,13 @@ def save_ctc_export(run_path, cmd_args):
                         "aom",  # EncodeMethod
                         info_data["run_id"],  # CodecName
                         "",  # EncodePreset #TODO: FIXME
-                        info_data["task"],  # Class
+                        normalized_set,  # Class
                         video,  # name
                         str(width) + "x" + str(height),  # OrigRes
                         str(float(fps_n) / float(fps_d)),  # FPS
                         10,  # BitDepth #TODO: FIXME
                         str(width) + "x" + str(height),  # CodedRes
-                        row[0],  # qp
+                        int(row[0]),  # qp
                         int(row[2])
                         * 8.0
                         * float(fps_n)
@@ -229,18 +234,56 @@ def save_ctc_export(run_path, cmd_args):
         csv_writer_obj.close()
 
 
+def write_xls_rows(run_path, start_id, this_sheet):
+    run_file = open(run_path + '/csv_export.csv', 'r')
+    run_reader = csv.reader(run_file)
+    next(run_reader)
+    this_row = start_id
+    for this_line in run_reader:
+        this_col = 1
+        for this_values in this_line:
+            this_cell = this_sheet.cell(row=this_row, column=this_col)
+            if this_col >= 12 and this_col <= 30 and this_values != "":
+                this_cell.value = float(this_values)
+            else:
+                this_cell.value = this_values
+            this_col += 1
+        this_row += 1
+    run_file.close()
+
+
 def write_xls_file(run_a, run_b):
     xls_template = os.path.join(
         os.getenv("CONFIG_DIR", "rd_tool"), 'AOM_CWG_Regular_CTCv3_v7.2.xlsm')
-    run_id_a = json.load(open(run_a + "/info.json"))["run_id"]
-    run_id_b = json.load(open(run_b + "/info.json"))["run_id"]
+    run_a_info = json.load(open(run_a + "/info.json"))
+    run_b_info = json.load(open(run_b + "/info.json"))
+    run_id_a = run_a_info["run_id"]
+    run_id_b = run_b_info["run_id"]
     xls_file = run_a + '/../ctc_results/' + \
         "CTC_Regular_v0-%s-%s.xlsm" % (run_id_a, run_id_b)
     shutil.copyfile(xls_template, xls_file)
-    wb = load_workbook(xls_file)
-    # TODO: Write rest to load Workbooks and parse the stuff and load.
-    # Read csv_export for A&B, check task_id, and write to excel sheet row by
-    # row
+    wb = load_workbook(xls_file, read_only=False, keep_vba=True)
+    this_codec = run_a_info['codec']
+    if '-' in this_codec:
+        if this_codec.split('-')[1].upper() in run_cfgs:
+            this_cfg = this_codec.split('-')[1].upper()
+    else:
+        this_cfg = 'RA'
+    anchor_sheet_name = 'Anchor-%s' % this_cfg
+    anchor_sheet = wb[anchor_sheet_name]
+    test_sheet_name = 'Test-%s' % this_cfg
+    test_sheet = wb[test_sheet_name]
+    current_video_set = run_a_info["task"]
+    if 'aomctc' in current_video_set:
+        normalized_set = current_video_set.split('-')[1].upper()
+        if normalized_set in start_rows.keys():
+            start_id = start_rows[normalized_set]
+            write_xls_rows(run_a, start_id, anchor_sheet)
+            write_xls_rows(run_b, start_id, test_sheet)
+            wb.save(xls_file)
+    else:
+        print("ERROR: Not AOM-CTC Set")
+        sys.exit(1)
 
 
 def main():
@@ -256,7 +299,7 @@ def main():
         save_ctc_export(args.run[0], args)
     else:
         if not args.run_b:
-            print("Missing Target, aborting")
+            print("ERROR: Missing Target, aborting")
             sys.exit(1)
         save_ctc_export(args.run[0], args)
         save_ctc_export(args.run_b, args)
