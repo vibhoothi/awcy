@@ -452,6 +452,7 @@ app.post('/submit/job',function(req,res) {
     'save_encode': req.body.save_encode,
     'task_type': 'video',
     'arch': req.body.arch,
+    'ctcSets': req.body.ctcSets.split(','),
   }
 
   const gerrit_detect_re = /I[0-9a-f]{40}/g;
