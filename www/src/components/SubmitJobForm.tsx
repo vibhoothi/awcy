@@ -48,6 +48,7 @@ export class SubmitJobFormComponent extends React.Component<{
       set: {label: task, value: task},
       codec: {label: Job.codecs[codec], value: codec},
       arch: {label: job.arch, value: job.arch},
+      ctcSets: job.ctcSets,
     } as any;
     job.saveEncodedFiles = true;
     this.setState({ job } as any);
@@ -140,9 +141,25 @@ export class SubmitJobFormComponent extends React.Component<{
     job.task = this.state.set.value;
     job.codec = this.state.codec.value;
     job.arch = this.state.arch.value;
-    for (var i = 0; i < this.state.ctcSets.length; i++) {
-      // Push only the actual CTC set names and skip pushing labels.
-      job.ctcSets.push(this.state.ctcSets[i].value);
+    if (typeof (this.state.ctcSets) !== 'undefined') {
+      // Instead of making a new loop over values before writing, we make the
+      // list to string and compare the string, easier and faster method.
+      if ((job.ctcSets.length == 0) || (JSON.stringify(job.ctcSets) != JSON.stringify(this.state.ctcSets))) {
+        // Here we are explictly setting Jobs CTCSet List to Zero, and write the
+        // values from the current State's List.
+        job.ctcSets = []
+        // As we have multiple videos here, the frontend is not adapted to have
+        // them all, so we are having only the first set as Task value.
+        job.task = this.state.ctcSets[0].value;
+        for (var i = 0; i < this.state.ctcSets.length; i++) {
+          // Push only the actual CTC set names and skip pushing labels.
+          job.ctcSets.push(this.state.ctcSets[i].value);
+        }
+        // If user gives All task or Mandatory Task, Parse and visualise A2
+        // class result.
+        if ((this.state.ctcSets[0].value == 'aomctc-mandatory') || (this.state.ctcSets[0].value == 'aomctc-all'))
+          job.task = 'aom-ctc-a2-2k'
+      }
     }
     this.props.onCreate(job);
   }
@@ -185,7 +202,7 @@ export class SubmitJobFormComponent extends React.Component<{
 
     const archOptions = [{value: 'x86_64', label: 'x86_64'}, {value: 'aarch64', label: 'aarch64'}];
     // CTC: Create a user-friendly CTC set list.
-    const ctcOptions = [{ value: 'aomctc-a1-4k', label: 'A1' }, { value: 'aomctc-a1-4k', label: 'A1' }, { value: 'aomctc-a2-2k', label: 'A2' }, { value: 'aomctc-a3-720p', label: 'A3' }, { value: 'aomctc-a4-360p', label: 'A4' }, { value: 'aomctc-a5-270p', label: 'A5' }, { value: 'aomctc-b1-syn', label: 'B1' }, { value: 'aomctc-b2-syn', label: 'B2' }, { value: 'aomctc-f1-hires', label: 'F1' }, { value: 'aomctc-f2-midres', label: 'F2' }, { value: 'aomctc-g1-hdr-4k', label: 'G1' }, { value: 'aomctc-g2-hdr-2k', label: 'G2' }, { value: 'aomctc-e-nonpristine', label: 'E' }, { value: 'aomctc-all_a', label: 'All-A' }, { value: 'aomctc-mandatory', label: 'Mandatory' }];
+    const ctcOptions = [{ value: 'aomctc-a1-4k', label: 'A1' }, { value: 'aomctc-a1-4k', label: 'A1' }, { value: 'aomctc-a2-2k', label: 'A2' }, { value: 'aomctc-a3-720p', label: 'A3' }, { value: 'aomctc-a4-360p', label: 'A4' }, { value: 'aomctc-a5-270p', label: 'A5' }, { value: 'aomctc-b1-syn', label: 'B1' }, { value: 'aomctc-b2-syn', label: 'B2' }, { value: 'aomctc-f1-hires', label: 'F1' }, { value: 'aomctc-f2-midres', label: 'F2' }, { value: 'aomctc-g1-hdr-4k', label: 'G1' }, { value: 'aomctc-g2-hdr-2k', label: 'G2' }, { value: 'aomctc-e-nonpristine', label: 'E' }, { value: 'aomctc-all', label: 'All' }, { value: 'aomctc-mandatory', label: 'Mandatory' }];
 
     return <Form>
       <FormGroup validationState={this.getValidationState("id")}>
