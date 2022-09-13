@@ -58,6 +58,23 @@ start_rows = {
     'E': 482
 }
 
+# CTC Configs
+# LD : ctc_sets_mandatory
+# RA: ctc_sets_mandatory  + ctc_sets_optional
+# AI: ctc_sets_mandatory_ai + ctc_sets_optional
+# AS: A1 with Downsampling
+ctc_sets_mandatory = [
+    "aomctc-a1-4k",
+    "aomctc-a2-2k",
+    "aomctc-a3-720p",
+    "aomctc-a4-360p",
+    "aomctc-a5-270p",
+    "aomctc-b1-syn"]
+ctc_sets_mandatory_ai = ctc_sets_mandatory + \
+    ["aomctc-f1-hires", "aomctc-f2-midres"]
+ctc_sets_optional = ["aomctc-g1-hdr-4k",
+                     "aomctc-g2-hdr-2k", "aomctc-e-nonpristine"]
+
 run_cfgs = ['RA', 'LD', 'AI', 'AS']
 
 row_header = [
@@ -114,32 +131,53 @@ class Logger(object):
         self.log.flush()
 
 
-def save_ctc_export(run_path, cmd_args):
+def return_start_rows(set_name):
+    try:
+        if 'aomctc' in set_name:
+            normalized_set = set_name.split('-')[1].upper()
+            if normalized_set in start_rows.keys():
+                return start_rows[normalized_set], normalized_set
+    except BaseException:
+        print("Not a CTC set to Normalize, check the runs")
+        sys.exit(1)
+
+
+def return_ctc_set_list(run_info):
+    set_name = run_info['ctcSets']
+    config = run_info['codec']
+    if set_name == 'aomctc-all':
+        if config == 'av2-ai':
+            run_set_list = ctc_sets_mandatory_ai + ctc_sets_optional
+        elif config == 'av2-ra-st' or config == 'av2-ra':
+            run_set_list = ctc_sets_mandatory + ctc_sets_optional
+        elif config == 'av2-ld':
+            run_set_list = ctc_sets_mandatory
+    elif set_name == 'aomctc-mandatory':
+        if config == 'av2-ra-st' or config == 'av2-ra' or config == 'av2-ld':
+            run_set_list = ctc_sets_mandatory
+        elif config == 'av2-ai':
+            run_set_list = ctc_sets_mandatory_ai
+    else:
+        run_set_list = run_info['ctcSets']
+    return run_set_list
+
+
+def write_set_data(run_path, writer, current_video_set):
     info_data = json.load(open(run_path + "/info.json"))
-    task = info_data["task"]
+    videos_dir = os.path.join(
+        os.getenv("MEDIAS_SRC_DIR", "/mnt/runs/sets"), current_video_set
+    )  # for getting framerate
     sets = json.load(
         open(os.path.join(os.getenv("CONFIG_DIR", "rd_tool"), "sets.json")))
-    videos = sets[task]["sources"]
+    videos = sets[current_video_set]["sources"]
     # sort name ascending, resolution descending
-    if task != "av2-a1-4k-as":
+    if current_video_set != "av2-a1-4k-as":
         videos.sort(key=lambda s: s.lower())
     else:
         videos.sort(
             key=lambda x: x.split("_")[0]
             + "%08d" % (100000 - int(x.split("_")[1].split("x")[0]))
         )
-    videos_dir = os.path.join(
-        os.getenv("MEDIAS_SRC_DIR", "/mnt/runs/sets"), task
-    )  # for getting framerate
-
-    if not cmd_args.ctc_export:
-        sys.stdout = Logger(run_path, cmd_args)
-        w = csv.writer(sys.stdout, dialect="excel")
-    else:
-        csv_writer_obj = open(run_path + "/csv_export.csv", 'w')
-        w = csv.writer(csv_writer_obj, dialect="excel")
-
-    w.writerow(row_header)
     try:
         for video in videos:
             v = open(os.path.join(videos_dir, video), "rb")
@@ -147,20 +185,24 @@ def save_ctc_export(run_path, cmd_args):
             fps_n, fps_d = re.search(r"F([0-9]*)\:([0-9]*)", line).group(1, 2)
             width = re.search(r"W([0-9]*)", line).group(1)
             height = re.search(r"H([0-9]*)", line).group(1)
-            current_video_set = info_data["task"]
             if 'aomctc' in current_video_set:
                 normalized_set = current_video_set.split('-')[1].upper()
-            a = loadtxt(os.path.join(run_path, task, video + "-daala.out"))
+            a = loadtxt(
+                os.path.join(
+                    run_path,
+                    current_video_set,
+                    video +
+                    "-daala.out"))
             for row in a:
                 frames = int(row[1]) / int(width) / int(height)
                 if info_data["codec"] == "av2-as":
-                    w.writerow(
+                    writer.writerow(
                         [
                             "AS",  # TestCfg
                             "aom",  # EncodeMethod
                             info_data["run_id"],  # CodecName
                             "",  # EncodePreset
-                            info_data["task"],  # Class
+                            normalized_set,  # Class
                             video,  # name
                             "3840x2160",  # OrigRes
                             "",  # FPS
@@ -190,12 +232,12 @@ def save_ctc_export(run_path, cmd_args):
                         ]
                     )
                 else:
-                    w.writerow(
+                    writer.writerow(
                         [
                             "RA",  # TestCfg # TODO: FIXME
                             "aom",  # EncodeMethod
                             info_data["run_id"],  # CodecName
-                            "",  # EncodePreset #TODO: FIXME
+                            0,  # EncodePreset #TODO: FIXME
                             normalized_set,  # Class
                             video,  # name
                             str(width) + "x" + str(height),  # OrigRes
@@ -234,24 +276,57 @@ def save_ctc_export(run_path, cmd_args):
     except BaseException:
         # This allows partial rendering of CSV + XLS Reports
         pass
-    if cmd_args.ctc_export:
+
+
+def save_ctc_export(run_path, cmd_args):
+    info_data = json.load(open(run_path + "/info.json"))
+    task = info_data["task"]
+    sets = json.load(
+        open(os.path.join(os.getenv("CONFIG_DIR", "rd_tool"), "sets.json")))
+    videos = sets[task]["sources"]
+    # sort name ascending, resolution descending
+    if task != "av2-a1-4k-as":
+        videos.sort(key=lambda s: s.lower())
+    else:
+        videos.sort(
+            key=lambda x: x.split("_")[0]
+            + "%08d" % (100000 - int(x.split("_")[1].split("x")[0]))
+        )
+    if not cmd_args.ctc_export:
+        sys.stdout = Logger(run_path, cmd_args)
+        w = csv.writer(sys.stdout, dialect="excel")
+        w.writerow(row_header)
+        write_set_data(run_path, w, task)
+    else:
+        ctc_set_list = return_ctc_set_list(info_data)
+        csv_writer_obj = open(run_path + "/csv_export.csv", 'w')
+        w = csv.writer(csv_writer_obj, dialect="excel")
+        w.writerow(row_header)
+        # Abstract Writing per-set data
+        for set_name in ctc_set_list:
+            write_set_data(run_path, w, set_name)
         csv_writer_obj.close()
 
 
-def write_xls_rows(run_path, start_id, this_sheet):
+def write_xls_rows(run_path, current_video_set, this_sheet):
     run_file = open(run_path + '/csv_export.csv', 'r')
+    start_id, normalized_set = return_start_rows(current_video_set)
+
     run_reader = csv.reader(run_file)
     next(run_reader)
     this_row = start_id
     for this_line in run_reader:
-        this_col = 1
-        for this_values in this_line:
-            this_cell = this_sheet.cell(row=this_row, column=this_col)
-            if this_col >= 12 and this_col <= 30 and this_values != "":
-                this_cell.value = float(this_values)
-            else:
-                this_cell.value = this_values
-            this_col += 1
+        if this_line[4] != normalized_set:
+            continue
+        else:
+            this_col = 1
+            for this_values in this_line:
+                this_cell = this_sheet.cell(row=this_row, column=this_col)
+                if this_col >= 12 and this_col <= 30 and this_values != "":
+                    this_cell.value = float(this_values)
+                else:
+                    this_cell.value = this_values
+                this_col += 1
         this_row += 1
     run_file.close()
 
@@ -278,16 +353,21 @@ def write_xls_file(run_a, run_b):
     test_sheet_name = 'Test-%s' % this_cfg
     test_sheet = wb[test_sheet_name]
     current_video_set = run_a_info["task"]
-    if 'aomctc' in current_video_set:
-        normalized_set = current_video_set.split('-')[1].upper()
-        if normalized_set in start_rows.keys():
-            start_id = start_rows[normalized_set]
-            write_xls_rows(run_a, start_id, anchor_sheet)
-            write_xls_rows(run_b, start_id, test_sheet)
-            wb.save(xls_file)
+    current_ctc_list_a = return_ctc_set_list(run_a_info)
+    current_ctc_list_b = return_ctc_set_list(run_b_info)
+
+    # Single Video Set Condition
+    if len(current_ctc_list_a) == 0 and len(current_ctc_list_a) == 0:
+        write_xls_rows(run_a, current_video_set, anchor_sheet)
+        write_xls_rows(run_b, current_video_set, test_sheet)
+        wb.save(xls_file)
+    # Multi-Set Case
     else:
-        print("ERROR: Not AOM-CTC Set")
-        sys.exit(1)
+        for this_video_set in current_ctc_list_a:
+            write_xls_rows(run_a, this_video_set, anchor_sheet)
+        for this_video_set in current_ctc_list_b:
+            write_xls_rows(run_b, this_video_set, test_sheet)
+        wb.save(xls_file)
 
 
 def main():
