@@ -368,6 +368,7 @@ export class Job {
   date: Date;
   arch: string = "x86_64";
   ctcSets: string[] = [];
+  ctcPresets: string[] = [];
 
   progress: JobProgress = new JobProgress(0, 0);
   selected: boolean = false;
@@ -549,6 +550,8 @@ export class Job {
     job.status = json.status;
     job.arch = json.arch || "x86_64";
     job.ctcSets = json.ctcSets || "";
+    job.ctcPresets = json.ctcPresets || "";
+
     job.saveEncodedFiles = parseBoolean(json.save_encode);
     job.runABCompare = parseBoolean(json.ab_compare);
     return job;
@@ -803,6 +806,7 @@ export class AppStore {
       save_encode: job.saveEncodedFiles,
       arch: job.arch,
       ctcSets: job.ctcSets,
+      ctcPresets: job.ctcPresets,
     });
   }
   cancelJob(job: Job) {
