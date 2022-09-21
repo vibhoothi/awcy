@@ -426,11 +426,11 @@ export class Job {
   convex_hulls:  { [name: string]: number[][] } = null;
 
   totalReportUrl(): string {
-    return baseUrl + `runs/${this.id}/${this.task}/total.out`;
+    return baseUrl + `runs/${this.id}/${this.codec}/${this.task}/total.out`;
   }
 
   reportUrl(name: string): string {
-    return baseUrl + `runs/${this.id}/${this.task}/${name}-daala.out`
+    return baseUrl + `runs/${this.id}/${this.codec}/${this.task}/${name}-daala.out`
   }
 
   decoderUrl(): string {
@@ -442,7 +442,7 @@ export class Job {
   }
 
   ivfUrlPrefix() {
-    return baseUrl + `runs/${this.id}/${this.task}/`;
+    return baseUrl + `runs/${this.id}/${this.codec}/${this.task}/`;
   }
   ivfUrlName(name: string, quality: number) {
     if (this.codec.substring(0,3) == 'av2') {
