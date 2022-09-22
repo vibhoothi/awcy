@@ -377,6 +377,7 @@ try:
         print("Runs do not match.")
         sys.exit(1)
     task = info_data[0]["task"]
+    codec = info_data[0]["codec"]
 except FileNotFoundError:
     # no info.json, using bare directories
     print("Couldn't open", args.run[0])
@@ -405,15 +406,15 @@ if info_data:
     for video in videos:
         if args.overlap:
             metric_data[video] = bdrate(
-                args.run[0] + "/" + task + "/" + video + args.suffix,
-                args.run[1] + "/" + task + "/" + video + args.suffix,
+                args.run[0] + "/" + codec + "/" + task + "/" + video + args.suffix,
+                args.run[1] + "/" + codec + "/" + task + "/" + video + args.suffix,
                 None,
                 args.fullrange,
             )
         else:
             metric_data[video] = bdrate(
-                args.run[0] + "/" + task + "/" + video + args.suffix,
-                args.run[1] + "/" + task + "/" + video + args.suffix,
+                args.run[0] + "/" + codec + "/" + task + "/" + video + args.suffix,
+                args.run[1] + "/" + codec + "/" + task + "/" + video + args.suffix,
                 args.anchordir[0]
                 + "/"
                 + sets[task]["anchor"]
