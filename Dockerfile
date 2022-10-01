@@ -112,11 +112,11 @@ ENV \
 # install rust
 RUN \
 	ARCH=`uname -m` && \
-	RUST_VERSION=1.59.0 && \
+	RUST_VERSION=1.64.0 && \
 	if [ "$ARCH" = "x86_64" ]; then \
-		curl -sSf --output /tmp/rustup-init https://static.rust-lang.org/rustup/archive/1.14.0/x86_64-unknown-linux-gnu/rustup-init; \
+		curl -sSf --output /tmp/rustup-init https://static.rust-lang.org/rustup/archive/1.25.0/x86_64-unknown-linux-gnu/rustup-init; \
 	else \
-		curl -sSf --output /tmp/rustup-init  https://static.rust-lang.org/rustup/archive/1.14.0/aarch64-unknown-linux-gnu/rustup-init; \
+		curl -sSf --output /tmp/rustup-init  https://static.rust-lang.org/rustup/archive/1.25.0/aarch64-unknown-linux-gnu/rustup-init; \
 	fi && \
 	chmod +x /tmp/rustup-init && \
 	/tmp/rustup-init -y --no-modify-path --default-toolchain ${RUST_VERSION} && \
@@ -129,7 +129,7 @@ RUN \
 	if [ "$ARCH" = "aarch64" ]; then \
 		ARCH='arm64'; \
 	else \
-		ARCH='x86'; \
+		ARCH='x64'; \
 	fi && \
 	for key in \
 		4ED778F539E3634C779C87C6D7062848A1AB005C \
