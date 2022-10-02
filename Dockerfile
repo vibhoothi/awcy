@@ -352,7 +352,7 @@ ENV \
 	RD_SERVER_PORT=4000
 
 # add configuration scripts
-ADD etc/* /etc
+ADD etc/* /etc/
 ADD etc/service/awcy /etc/service/awcy
 ADD etc/service/job-scheduler /etc/service/job-scheduler
 

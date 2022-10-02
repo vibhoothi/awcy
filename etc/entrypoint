@@ -213,9 +213,22 @@ cat >/home/${APP_USER}/.gitconfig <<-EOF
 	EOF
 chown xiph /home/${APP_USER}/.gitconfig
 
+# Explictly Set Permissions to be sure we got it right
+export SSH_PRIVKEY_FILE=${CONFIG_DIR}/awcy.pem
+echo $SSH_PRIVKEY_FILE
+
+## Add Key to agent
 eval `ssh-agent -s`
 ssh-add /data/conf/awcy.pem
 ssh-add -l
+
+## Update permissions
+chmod 700 /home/${APP_USER}/.ssh
+chmod 600 /home/${APP_USER}/.ssh/authorized_keys
+chown -R ${APP_USER}:${APP_USER} /home/${APP_USER}/.ssh
+chown -R ${APP_USER}:${APP_USER} /home/${APP_USER}/.ssh/authorized_keys
+chown -R ${APP_USER}:${APP_USER} $SSH_PRIVKEY_FILE
+
 
 # run runit services
 exec tini -g -- /usr/bin/runsvdir -P /etc/service
