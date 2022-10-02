@@ -141,24 +141,38 @@ export class SubmitJobFormComponent extends React.Component<{
     job.task = this.state.set.value;
     job.codec = this.state.codec.value;
     job.arch = this.state.arch.value;
+    const checkAllSets = obj => obj.value === 'aomctc-all';
+    const checkMandatorySets = obj => obj.value === 'aomctc-mandatory';
     if (typeof (this.state.ctcSets) !== 'undefined') {
-      // Instead of making a new loop over values before writing, we make the
-      // list to string and compare the string, easier and faster method.
-      if ((job.ctcSets.length == 0) || (JSON.stringify(job.ctcSets) != JSON.stringify(this.state.ctcSets))) {
-        // Here we are explictly setting Jobs CTCSet List to Zero, and write the
+      // Case 1: No CTC Sets
+      if (this.state.ctcSets.length == 0) {
+        job.ctcSets = []
+      }
+      // Case 2: If user has mandatory set, push only that
+      else if (this.state.ctcSets.some(checkMandatorySets)) {
+        job.ctcSets = []
+        job.task = 'aomctc-a2-2k';
+        job.ctcSets.push('aomctc-mandatory')
+      }
+      // Case 3: If user has all set, push only that, ignore rest
+      else if (this.state.ctcSets.some(checkAllSets)) {
+        job.ctcSets = []
+        job.task = 'aomctc-a2-2k';
+        job.ctcSets.push('aomctc-all')
+      }
+      // Case 4: Creating/Cloning an existing job,
+      // For cloning, we compare by converitng to string
+      else if (JSON.stringify(job.ctcSets) != JSON.stringify(this.state.ctcSets)) {
+        // Explictly setting Jobs CTCSet List to Zero, and write the
         // values from the current State's List.
         job.ctcSets = []
-        // As we have multiple videos here, the frontend is not adapted to have
-        // them all, so we are having only the first set as Task value.
+        // As we have multiple sets, the frontend will render only first set for
+        // now.
         job.task = this.state.ctcSets[0].value;
         for (var i = 0; i < this.state.ctcSets.length; i++) {
           // Push only the actual CTC set names and skip pushing labels.
           job.ctcSets.push(this.state.ctcSets[i].value);
         }
-        // If user gives All task or Mandatory Task, Parse and visualise A2
-        // class result.
-        if ((this.state.ctcSets[0].value == 'aomctc-mandatory') || (this.state.ctcSets[0].value == 'aomctc-all'))
-          job.task = 'aom-ctc-a2-2k'
       }
     }
     this.props.onCreate(job);
