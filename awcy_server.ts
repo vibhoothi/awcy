@@ -6,7 +6,7 @@ import bodyParser = require('body-parser')
 import cookieParser = require('cookie-parser')
 import fs = require('fs-extra');
 import cp = require('child_process');
-import irc = require('irc');
+//import irc = require('irc');
 import AWS = require('aws-sdk');
 import request = require('request');
 import querystring = require('querystring');
@@ -41,15 +41,15 @@ const channel = config.channel;
 
 AWS.config.update({region: 'us-west-2'});
 
-var ircclient = null;
-if (channel != "none") {
-  ircclient = new irc.Client('irc.libera.chat', 'XiphAWCY', {
-      channels: [channel],
-  });
-  ircclient.addListener('error', function(message) {
-      console.log('error: ', message);
-  });
-}
+//var ircclient = null;
+//if (channel != "none") {
+//  ircclient = new irc.Client('irc.libera.chat', 'XiphAWCY', {
+//      channels: [channel],
+//  });
+//  ircclient.addListener('error', function(message) {
+//      console.log('error: ', message);
+//  });
+//}
 
 const key = fs.readFileSync(config_dir+'/secret_key', {encoding: 'utf8'}).trim();
 
@@ -161,10 +161,10 @@ function process_build_queue() {
       }
       if (error) {
         fs.writeFile(runs_dst_dir+'/'+build_job.run_id+'/status.txt','buildfailed');
-        if (ircclient) {
+        /*if (ircclient) {
           ircclient.say(channel,build_job.nick+': Failed to build! '+build_job.run_id+
                       ' '+config.base_url+'/runs/'+build_job.run_id+'/output.txt');
-        }
+        }*/
         generate_list(build_job.run_id);
       } else {
         add_to_run_queue(build_job);
@@ -177,9 +177,9 @@ function process_build_queue() {
 };
 
 function add_to_run_queue(job) {
-  if (ircclient) {
-    ircclient.say(channel,job.nick+': Starting '+job.run_id);
-  }
+ // if (ircclient) {
+ //   ircclient.say(channel,job.nick+': Starting '+job.run_id);
+ // }
   request(config.rd_server_url+'/submit?'+querystring.stringify({run_id: job.run_id}), function (error, response, body) {
     console.log(error);
     console.log(body);
@@ -283,9 +283,9 @@ function check_for_completed_runs() {
       for (let runid in last_runs) {
         if (!(runid in current_runs)) {
           list_updated = true;
-          if (ircclient) {
-            ircclient.say(channel,last_runs[runid]['info']['nick']+': Finished '+runid);
-          }
+        //  if (ircclient) {
+         //   ircclient.say(channel,last_runs[runid]['info']['nick']+': Finished '+runid);
+         // }
         }
       }
       if (list_updated) generate_list(null);
@@ -630,8 +630,8 @@ console.log('Media samples directory: '+medias_src_dir);
 console.log('Runs output directory: '+runs_dst_dir);
 console.log('')
 
-if (ircclient) {
-  console.log('IRC notifications will be sent to channel '+channel);
-} else {
-  console.log('IRC notifications are disable as channel is set to "none"');
-}
+//if (ircclient) {
+//  console.log('IRC notifications will be sent to channel '+channel);
+//} else {
+//  console.log('IRC notifications are disable as channel is set to "none"');
+//}
