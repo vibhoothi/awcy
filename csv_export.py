@@ -69,13 +69,39 @@ ctc_sets_mandatory = [
     "aomctc-a3-720p",
     "aomctc-a4-360p",
     "aomctc-a5-270p",
-    "aomctc-b1-syn"]
+    "aomctc-b1-syn",
+    "aomctc-b2-syn"]
 ctc_sets_mandatory_ai = ctc_sets_mandatory + \
     ["aomctc-f1-hires", "aomctc-f2-midres"]
 ctc_sets_optional = ["aomctc-g1-hdr-4k",
                      "aomctc-g2-hdr-2k", "aomctc-e-nonpristine"]
 
 run_cfgs = ['RA', 'LD', 'AI', 'AS']
+
+quality_presets = {
+    "daala": [7, 11, 16, 25, 37],
+    "x264": list(range(1, 52, 5)),
+    "x265": list(range(5, 52, 5)),
+    "x265-rt": list(range(5, 52, 5)),
+    "xvc": [20, 25, 30, 35, 40],
+    "vp8": list(range(12, 64, 5)),
+    "vp9": [20, 32, 43, 55, 63],
+    "vp9-rt": [20, 32, 43, 55, 63],
+    "vp10": [8, 20, 32, 43, 55, 63],
+    "vp10-rt": [8, 20, 32, 43, 55, 63],
+    "av1": [20, 32, 43, 55, 63],
+    "av1-rt": [20, 32, 43, 55, 63],
+    "av2-ai": [85, 110, 135, 160, 185, 210],
+    "av2-ra": [110, 135, 160, 185, 210, 235],
+    "av2-ra-st": [110, 135, 160, 185, 210, 235],
+    "av2-ld": [110, 135, 160, 185, 210, 235],
+    "av2-as": [110, 135, 160, 185, 210, 235],
+    "av2-f": [60, 85, 110, 135, 160, 185],
+    "thor": list(range(7, 43, 3)),
+    "thor-rt": list(range(7, 43, 3)),
+    "rav1e": [20 * 4, 32 * 4, 43 * 4, 55 * 4, 63 * 4],
+    "svt-av1": [20, 32, 43, 55, 63],
+}
 
 row_header = [
     "TestCfg",
@@ -145,14 +171,14 @@ def return_start_rows(set_name):
 def return_ctc_set_list(run_info):
     set_name = run_info['ctcSets']
     config = run_info['codec']
-    if set_name == 'aomctc-all':
+    if 'aomctc-all' in set_name:
         if config == 'av2-ai':
             run_set_list = ctc_sets_mandatory_ai + ctc_sets_optional
         elif config == 'av2-ra-st' or config == 'av2-ra':
             run_set_list = ctc_sets_mandatory + ctc_sets_optional
         elif config == 'av2-ld':
             run_set_list = ctc_sets_mandatory
-    elif set_name == 'aomctc-mandatory':
+    elif 'aomctc-mandatory' in set_name:
         if config == 'av2-ra-st' or config == 'av2-ra' or config == 'av2-ld':
             run_set_list = ctc_sets_mandatory
         elif config == 'av2-ai':
@@ -178,6 +204,15 @@ def write_set_data(run_path, writer, current_video_set):
             key=lambda x: x.split("_")[0]
             + "%08d" % (100000 - int(x.split("_")[1].split("x")[0]))
         )
+    if 'av2' in info_data['codec']:
+        normalized_cfg = info_data['codec'].split('-')[1].upper()
+    else:
+        normalized_cfg = 'RA'
+    # Get the Quality values, if user defined, use that, else do defaults
+    if 'qualities' in list(info_data.keys()):
+        qp_list = info_data['qualities'].split()
+    else:
+        qp_list = quality_presets[info_data['codec']]
     try:
         for video in videos:
             v = open(os.path.join(videos_dir, video), "rb")
@@ -193,86 +228,109 @@ def write_set_data(run_path, writer, current_video_set):
                     current_video_set,
                     video +
                     "-daala.out"))
+            # This way, even partial information from the *daala.out can be
+            # rendered by having key-value where key is QP.
+            encoded_qp_list = {}
             for row in a:
-                frames = int(row[1]) / int(width) / int(height)
-                if info_data["codec"] == "av2-as":
-                    writer.writerow(
-                        [
-                            "AS",  # TestCfg
-                            "aom",  # EncodeMethod
-                            info_data["run_id"],  # CodecName
-                            "",  # EncodePreset
-                            normalized_set,  # Class
-                            video,  # name
-                            "3840x2160",  # OrigRes
-                            "",  # FPS
-                            10,  # BitDepth
-                            str(width) + "x" + str(height),  # CodedRes
-                            row[0],  # qp
-                            int(row[2])
-                            * 8.0
-                            * float(fps_n)
-                            / float(fps_d)
-                            / frames
-                            / 1000.0,  # bitrate
-                            row[met_index["PSNR Y (libvmaf)"] + 3],
-                            row[met_index["PSNR Cb (libvmaf)"] + 3],
-                            row[met_index["PSNR Cr (libvmaf)"] + 3],
-                            row[met_index["SSIM (libvmaf)"] + 3],
-                            row[met_index["MS-SSIM (libvmaf)"] + 3],
-                            row[met_index["VMAF"] + 3],
-                            row[met_index["VMAF-NEG"] + 3],
-                            row[met_index["PSNR-HVS Y (libvmaf)"] + 3],
-                            row[met_index["CIEDE2000 (libvmaf)"] + 3],
-                            row[met_index["APSNR Y (libvmaf)"] + 3],
-                            row[met_index["APSNR Cb (libvmaf)"] + 3],
-                            row[met_index["APSNR Cr (libvmaf)"] + 3],
-                            row[met_index["Encoding Time"] + 3],
-                            row[met_index["Decoding Time"] + 3],
-                        ]
-                    )
+                encoded_qp_list[int(row[0])] = row
+            for this_qp in qp_list:
+                # Check if the QPs is present in the currently stored daala.out
+                if this_qp in encoded_qp_list.keys():
+                    row = encoded_qp_list[this_qp]
+                    frames = int(row[1]) / int(width) / int(height)
+                    if info_data["codec"] == "av2-as":
+                        writer.writerow(
+                            [
+                                "AS",  # TestCfg
+                                "aom",  # EncodeMethod
+                                info_data["run_id"],  # CodecName
+                                "",  # EncodePreset
+                                normalized_set,  # Class
+                                video,  # name
+                                "3840x2160",  # OrigRes
+                                "",  # FPS
+                                10,  # BitDepth
+                                str(width) + "x" + str(height),  # CodedRes
+                                row[0],  # qp
+                                int(row[2])
+                                * 8.0
+                                * float(fps_n)
+                                / float(fps_d)
+                                / frames
+                                / 1000.0,  # bitrate
+                                row[met_index["PSNR Y (libvmaf)"] + 3],
+                                row[met_index["PSNR Cb (libvmaf)"] + 3],
+                                row[met_index["PSNR Cr (libvmaf)"] + 3],
+                                row[met_index["SSIM (libvmaf)"] + 3],
+                                row[met_index["MS-SSIM (libvmaf)"] + 3],
+                                row[met_index["VMAF"] + 3],
+                                row[met_index["VMAF-NEG"] + 3],
+                                row[met_index["PSNR-HVS Y (libvmaf)"] + 3],
+                                row[met_index["CIEDE2000 (libvmaf)"] + 3],
+                                row[met_index["APSNR Y (libvmaf)"] + 3],
+                                row[met_index["APSNR Cb (libvmaf)"] + 3],
+                                row[met_index["APSNR Cr (libvmaf)"] + 3],
+                                row[met_index["Encoding Time"] + 3],
+                                row[met_index["Decoding Time"] + 3],
+                            ]
+                        )
+                    else:
+                        writer.writerow(
+                            [
+                                normalized_cfg,  # TestCfg
+                                "aom",  # EncodeMethod
+                                info_data["run_id"],  # CodecName
+                                0,  # EncodePreset #TODO: FIXME
+                                normalized_set,  # Class
+                                video,  # name
+                                str(width) + "x" + str(height),  # OrigRes
+                                str(float(fps_n) / float(fps_d)),  # FPS
+                                10,  # BitDepth #TODO: FIXME
+                                str(width) + "x" + str(height),  # CodedRes
+                                int(row[0]),  # qp
+                                int(row[2])
+                                * 8.0
+                                * float(fps_n)
+                                / float(fps_d)
+                                / frames
+                                / 1000.0,  # bitrate
+                                row[met_index["PSNR Y (libvmaf)"] + 3],
+                                row[met_index["PSNR Cb (libvmaf)"] + 3],
+                                row[met_index["PSNR Cr (libvmaf)"] + 3],
+                                row[met_index["SSIM (libvmaf)"] + 3],
+                                row[met_index["MS-SSIM (libvmaf)"] + 3],
+                                row[met_index["VMAF"] + 3],
+                                row[met_index["VMAF-NEG"] + 3],
+                                row[met_index["PSNR-HVS Y (libvmaf)"] + 3],
+                                row[met_index["CIEDE2000 (libvmaf)"] + 3],
+                                row[met_index["APSNR Y (libvmaf)"] + 3],
+                                row[met_index["APSNR Cb (libvmaf)"] + 3],
+                                row[met_index["APSNR Cr (libvmaf)"] + 3],
+                                row[met_index["CAMBI (libvmaf)"] + 3],
+                                row[met_index["Encoding Time"] + 3],
+                                row[met_index["Decoding Time"] + 3],
+                                "",  # ENCInstr
+                                "",  # DecInstr
+                                "",  # EncCycles
+                                "",  # DecCycles
+                                "",  # EncMD5
+                            ]
+                        )
+                # Case where the data is yet to be made
                 else:
-                    writer.writerow(
-                        [
-                            "RA",  # TestCfg # TODO: FIXME
-                            "aom",  # EncodeMethod
-                            info_data["run_id"],  # CodecName
-                            0,  # EncodePreset #TODO: FIXME
-                            normalized_set,  # Class
-                            video,  # name
-                            str(width) + "x" + str(height),  # OrigRes
-                            str(float(fps_n) / float(fps_d)),  # FPS
-                            10,  # BitDepth #TODO: FIXME
-                            str(width) + "x" + str(height),  # CodedRes
-                            int(row[0]),  # qp
-                            int(row[2])
-                            * 8.0
-                            * float(fps_n)
-                            / float(fps_d)
-                            / frames
-                            / 1000.0,  # bitrate
-                            row[met_index["PSNR Y (libvmaf)"] + 3],
-                            row[met_index["PSNR Cb (libvmaf)"] + 3],
-                            row[met_index["PSNR Cr (libvmaf)"] + 3],
-                            row[met_index["SSIM (libvmaf)"] + 3],
-                            row[met_index["MS-SSIM (libvmaf)"] + 3],
-                            row[met_index["VMAF"] + 3],
-                            row[met_index["VMAF-NEG"] + 3],
-                            row[met_index["PSNR-HVS Y (libvmaf)"] + 3],
-                            row[met_index["CIEDE2000 (libvmaf)"] + 3],
-                            row[met_index["APSNR Y (libvmaf)"] + 3],
-                            row[met_index["APSNR Cb (libvmaf)"] + 3],
-                            row[met_index["APSNR Cr (libvmaf)"] + 3],
-                            row[met_index["CAMBI (libvmaf)"] + 3],
-                            row[met_index["Encoding Time"] + 3],
-                            row[met_index["Decoding Time"] + 3],
-                            "",  # ENCInstr
-                            "",  # DecInstr
-                            "",  # EncCycles
-                            "",  # DecCycles
-                            "",  # EncMD5
-                        ]
-                    )
+                    writer.writerow([
+                        "RA",  # TestCfg # TODO: FIXME
+                        "aom",  # EncodeMethod
+                        info_data["run_id"],  # CodecName
+                        0,  # EncodePreset #TODO: FIXME
+                        normalized_set,  # Class
+                        video,  # name
+                        str(width) + "x" + str(height),  # OrigRes
+                        str(float(fps_n) / float(fps_d)),  # FPS
+                        10,  # BitDepth #TODO: FIXME
+                        str(width) + "x" + str(height),  # CodedRes
+                        this_qp  # qp
+                    ])
     except BaseException:
         # This allows partial rendering of CSV + XLS Reports
         pass
