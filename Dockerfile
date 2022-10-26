@@ -327,7 +327,8 @@ ADD *.m *.sh *.py ${APP_DIR}/
 
 # AOM_CTC: Install Openpyxl
 RUN \
-	pip3 install openpyxl xlrd==1.2.0 xlsxwriter matplotlib
+	pip3 install openpyxl xlrd==1.2.0 xlsxwriter matplotlib && \
+	pip3 install --force scipy numpy
 
 
 # environment variables
