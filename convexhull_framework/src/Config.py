@@ -36,7 +36,7 @@ UsePerfUtil = False
 Platform = platform.system()
 
 ############ test contents #######################################
-ContentPath = "/mnt/runs/sets/"
+ContentPath = "/media/"
 ############## Scaling settings ############################################
 # down scaling ratio
 DnScaleRatio = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0]   # downscale ratio
