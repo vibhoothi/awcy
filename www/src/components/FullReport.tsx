@@ -227,12 +227,14 @@ export class FullReportComponent extends React.Component<{}, {
 
     let job = jobs[0];
     let metrics = [this.state.metric];
+    let set = job.task;
+    let preset = job.codec;
     return <div>
       <Panel>
         {selectedJobs}
       </Panel>
       <Panel>
-        <JobSelectorComponent metric={this.state.metric} video={this.state.video} jobs={jobs} onChange={this.onJobSelectorChange.bind(this)} />
+        <JobSelectorComponent metric={this.state.metric} video={this.state.video} jobs={jobs} set={set} preset={preset} onChange={this.onJobSelectorChange.bind(this)} />
       </Panel>
       <div style={{ }}>
         <Button active={this.state.fit} onClick={this.onFitClick.bind(this)}>Fit Charts</Button>{' '}

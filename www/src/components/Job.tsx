@@ -123,7 +123,7 @@ export class JobComponent extends React.Component<JobProps, {
     // Making this backward compatible for old jobs without submit_time metadata
     if (isNaN(job.submit_time.valueOf())) {
       job.submit_time = new Date(job.date);
-    } dif
+    }
     let date = job.submit_time ? `${timeSince(job.submit_time)}` : "";
 
     let borderRight = job.selected ? "4px solid " + job.color : undefined;
