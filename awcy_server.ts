@@ -493,6 +493,9 @@ app.post('/submit/job',function(req,res) {
   } else {
     req.body.ctcPresets = req.body.ctcPresets.split(',')
   }
+  if (!req.body.date) {
+    req.body.date = new Date(Date.now());
+  }
   const job = {
     'codec': req.body.codec,
     'commit': req.body.commit,
@@ -509,6 +512,7 @@ app.post('/submit/job',function(req,res) {
     'arch': req.body.arch,
     'ctcSets': req.body.ctcSets,
     'ctcPresets': req.body.ctcPresets,
+    'submit_time': req.body.date,
   }
 
   const gerrit_detect_re = /I[0-9a-f]{40}/g;
